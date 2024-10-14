@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "./Assignment2.sol";
 
 contract VickreyAuction is IVickreyAuction {
+    // Public vars
     uint256 public reservePrice;
     uint256 public bidDeposit;
     address public seller;
@@ -14,6 +15,7 @@ contract VickreyAuction is IVickreyAuction {
     address public highestBidder;
     uint256 public secondHighestBid;
 
+    // Private vars
     uint256 private biddingEnd;
     uint256 private revealEnd;
 
@@ -27,10 +29,10 @@ contract VickreyAuction is IVickreyAuction {
         uint256 _biddingPeriod,
         uint256 _revealPeriod
     ) {
-        require(_reservePrice > 0, "Reserve price must be greater than 0");
-        require(_bidDeposit > 0, "Bid deposit must be greater than 0");
-        require(_biddingPeriod > 0, "Bidding period must be greater than 0");
-        require(_revealPeriod > 0, "Reveal period must be greater than 0");
+        require(_reservePrice > 0, "The reserve price must be greater than 0");
+        require(_bidDeposit > 0, "The bid deposit must be greater than 0");
+        require(_biddingPeriod > 0, "The bidding period must be greater than 0");
+        require(_revealPeriod > 0, "The reveal period must be greater than 0");
 
         seller = msg.sender;
         reservePrice = _reservePrice;
@@ -39,7 +41,7 @@ contract VickreyAuction is IVickreyAuction {
         revealEnd = biddingEnd + _revealPeriod;
     }
 
-    // Can use mapping to store the commitment for each bidder
+    // We use mapping to store the commitment for each bidder
     mapping(address => bytes32) private bidCommitments;
     mapping(address => uint256) private bidderDeposits;
     mapping(address => uint256) private revealedBids;
@@ -76,9 +78,10 @@ contract VickreyAuction is IVickreyAuction {
     // If the bid is the new highest known bid, the deposit is returned and the previous high bidder's bid is returned.
     function revealBid(bytes32 nonce) external payable override {
         require(block.number > biddingEnd && block.number <= revealEnd, "Not in reveal period");
-        require(!hasRevealed[msg.sender], "Bid already revealed");
+        require(!hasRevealed[msg.sender], "Bid is already revealed");
         require(bidderDeposits[msg.sender] >= bidDeposit, "No valid bid committed");
 
+        // Make sure the bid matches the commitment
         bytes32 commitment = makeCommitment(msg.value, nonce);
         require(commitment == bidCommitments[msg.sender], "Incorrect bid or nonce");
 
@@ -87,6 +90,7 @@ contract VickreyAuction is IVickreyAuction {
 
         uint256 refundAmount = bidderDeposits[msg.sender];
 
+        // If the bid is higher than the current highest bid and it meets the reserve price
         if (msg.value >= reservePrice && msg.value > revealedBids[highestBidder]) {
             if (highestBidder != address(0)) {
                 payable(highestBidder).transfer(revealedBids[highestBidder]);
@@ -101,8 +105,10 @@ contract VickreyAuction is IVickreyAuction {
             }
         }
 
+        // Reset the deposit
         bidderDeposits[msg.sender] = 0;
 
+        // To refund the bidder
         if (refundAmount > 0) {
             payable(msg.sender).transfer(refundAmount);
         }

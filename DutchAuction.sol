@@ -4,20 +4,23 @@ pragma solidity ^0.8.0;
 import "./Assignment2.sol";
 
 contract DutchAuction is IDutchAuction {
+    // Public variables
     address public seller;
     address public winner;
     uint256 public finalPrice;
 
+    // Private variables
     uint256 private initialPrice;
     uint256 private blockDecrement;
     uint256 private endBlock;
     uint256 private startBlock;
 
+    // Tracks if auction has ended
     bool private finalized;
 
     // Note: Contract creator should be the seller
     constructor(
-        uint256 _initialPrice,
+        uint256 _initialPrice,  
         uint256 _blockDecrement,
         uint256 _duration
     ) {
@@ -32,6 +35,8 @@ contract DutchAuction is IDutchAuction {
         endBlock = startBlock + _duration - 1;
     }
 
+    // Used for placing bids on the auction
+    // Winner is whoever first places a valid bid with a value equal to or higher than the current price
     function bid() external payable override {
         require(block.number <= endBlock, "Auction has ended");
         require(winner == address(0), "Auction already has a winner");
@@ -43,16 +48,16 @@ contract DutchAuction is IDutchAuction {
         winner = msg.sender;
         finalPrice = price;
 
-        // Refund excess amount if bid is higher than current price
+        // Refund the excess amount when the bid is higher than the current price
         if (msg.value > price) {
             payable(msg.sender).transfer(msg.value - price);
         }
     }
 
-    // Anyone can finalize the auction after the auction has ended
+    // Anyone can use this function to finalize the auction after the auction has ended
     function finalize() external override {
-        require(block.number > endBlock || winner != address(0), "Auction not yet ended");
-        require(!finalized, "Auction already finalized");
+        require(block.number > endBlock || winner != address(0), "Auction has not yet ended");
+        require(!finalized, "Auction is already finalized");
 
         finalized = true;
 
@@ -61,11 +66,13 @@ contract DutchAuction is IDutchAuction {
         }
     }
 
+    // This function calculates the current price of the item
     function currentPrice() public view override returns (uint256) {
         if (block.number > endBlock) {
             return 0;
         }
 
+        // How many blocks have passed
         uint256 elapsedBlocks = block.number - startBlock;
         uint256 totalDecrement = elapsedBlocks * blockDecrement;
 

@@ -4,15 +4,15 @@ pragma solidity ^0.8.0;
 import "./Assignment2.sol";
 
 contract EnglishAuction is IEnglishAuction {
+    // Public vars
     uint256 public minIncrement;
     address public seller;
-
     address public winner;
     uint256 public finalPrice;
-
     address public highestBidder;
     uint256 public highestBid;
 
+    // Private vars
     uint256 private initialPrice;
     uint256 private endBlock;
     uint256 private biddingPeriod;
@@ -36,9 +36,10 @@ contract EnglishAuction is IEnglishAuction {
         endBlock = block.number + _biddingPeriod;
     }
 
+    // This function allows users to place bids
     function bid() external payable override {
-        require(block.number < endBlock, "Auction has ended");
-        require(!finalized, "Auction has been finalized");
+        require(block.number < endBlock, "The auction has ended");
+        require(!finalized, "The auction has been finalized");
         
         uint256 minValidBid = highestBid > 0 ? highestBid + minIncrement : initialPrice;
         require(msg.value >= minValidBid, "Bid too low");
@@ -47,6 +48,7 @@ contract EnglishAuction is IEnglishAuction {
             payable(highestBidder).transfer(highestBid);
         }
 
+        // Update highest bidder and highest bid
         highestBidder = msg.sender;
         highestBid = msg.value;
 
@@ -63,6 +65,7 @@ contract EnglishAuction is IEnglishAuction {
         winner = highestBidder;
         finalPrice = highestBid;
 
+        // Give the highest bid to the seller if there is a winner
         if (winner != address(0)) {
             payable(seller).transfer(highestBid);
         }
