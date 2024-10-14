@@ -35,12 +35,13 @@ contract VickreyAuction is IVickreyAuction {
         seller = msg.sender;
         reservePrice = _reservePrice;
         bidDeposit = _bidDeposit;
-        biddingEnd = block.number + _biddingPeriod;
+        biddingEnd = block.number + _biddingPeriod - 1;
         revealEnd = biddingEnd + _revealPeriod;
     }
 
     // Can use mapping to store the commitment for each bidder
     mapping(address => bytes32) private bidCommitments;
+    mapping(address => uint256) private bidderDeposits;
     mapping(address => uint256) private revealedBids;
     mapping(address => bool) private hasRevealed;
 
@@ -50,17 +51,23 @@ contract VickreyAuction is IVickreyAuction {
     // Only allow commitments before biddingDeadline
     function commitBid(bytes32 bidCommitment) external payable override {
         require(block.number <= biddingEnd, "Bidding period has ended");
-        require(msg.value >= bidDeposit, "Insufficient bid deposit");
 
-        if (bidCommitments[msg.sender] == bytes32(0)) {
+        uint256 currentDeposit = bidderDeposits[msg.sender];
+        uint256 totalDeposit = currentDeposit + msg.value;
+
+        if (currentDeposit == 0) {
             // New bid
-            require(msg.value == bidDeposit, "Incorrect bid deposit amount");
-        } else {
-            // Updating previous bid
-            require(msg.value == 0, "No additional deposit needed for updates");
+            require(totalDeposit >= bidDeposit, "Insufficient bid deposit");
         }
 
+        // Update commitment and deposit
         bidCommitments[msg.sender] = bidCommitment;
+        bidderDeposits[msg.sender] = totalDeposit;
+
+        // Refund excess deposit
+        if (totalDeposit > bidDeposit) {
+            payable(msg.sender).transfer(totalDeposit - bidDeposit);
+        }
     }
 
     // Check that the bid (msg.value) matches the commitment
@@ -70,6 +77,7 @@ contract VickreyAuction is IVickreyAuction {
     function revealBid(bytes32 nonce) external payable override {
         require(block.number > biddingEnd && block.number <= revealEnd, "Not in reveal period");
         require(!hasRevealed[msg.sender], "Bid already revealed");
+        require(bidderDeposits[msg.sender] >= bidDeposit, "No valid bid committed");
 
         bytes32 commitment = makeCommitment(msg.value, nonce);
         require(commitment == bidCommitments[msg.sender], "Incorrect bid or nonce");
@@ -89,12 +97,15 @@ contract VickreyAuction is IVickreyAuction {
         }
 
         // Return bid deposit
-        payable(msg.sender).transfer(bidDeposit);
+        payable(msg.sender).transfer(bidderDeposits[msg.sender]);
 
         // Refund excess bid amount if not the highest bidder
         if (msg.sender != highestBidder) {
             payable(msg.sender).transfer(msg.value);
         }
+
+        // Reset bidder's deposit
+        bidderDeposits[msg.sender] = 0;
     }
 
     // This function shows how to make a commitment
