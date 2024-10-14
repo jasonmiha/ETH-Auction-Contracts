@@ -37,11 +37,13 @@ contract DutchAuction is IDutchAuction {
         require(winner == address(0), "Auction already has a winner");
 
         uint256 price = currentPrice();
+        require(price > 0, "Auction has ended");
         require(msg.value >= price, "Bid is too low");
 
         winner = msg.sender;
         finalPrice = price;
 
+        // Refund excess amount if bid is higher than current price
         if (msg.value > price) {
             payable(msg.sender).transfer(msg.value - price);
         }
