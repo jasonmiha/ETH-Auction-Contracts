@@ -29,7 +29,7 @@ contract DutchAuction is IDutchAuction {
         initialPrice = _initialPrice;
         blockDecrement = _blockDecrement;
         startBlock = block.number;
-        endBlock = startBlock + _duration;
+        endBlock = startBlock + _duration - 1;
     }
 
     function bid() external payable override {
@@ -62,7 +62,7 @@ contract DutchAuction is IDutchAuction {
     }
 
     function currentPrice() public view override returns (uint256) {
-        if (block.number >= endBlock) {
+        if (block.number > endBlock) {
             return 0;
         }
 
