@@ -4,9 +4,9 @@ pragma solidity ^0.8.0;
 import "./Assignment2.sol";
 
 contract DutchAuction is IDutchAuction {
-    address public override seller;
-    address public override winner;
-    uint256 public override finalPrice;
+    address public seller;
+    address public winner;
+    uint256 public finalPrice;
 
     uint256 private initialPrice;
     uint256 private blockDecrement;
