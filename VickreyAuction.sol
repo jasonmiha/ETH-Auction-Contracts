@@ -56,17 +56,17 @@ contract VickreyAuction is IVickreyAuction {
         uint256 totalDeposit = currentDeposit + msg.value;
 
         if (currentDeposit == 0) {
-            // New bid
             require(totalDeposit >= bidDeposit, "Insufficient bid deposit");
         }
 
-        // Update commitment and deposit
         bidCommitments[msg.sender] = bidCommitment;
         bidderDeposits[msg.sender] = totalDeposit;
 
-        // Refund excess deposit
+        // Only refund if there's an excess deposit
         if (totalDeposit > bidDeposit) {
-            payable(msg.sender).transfer(totalDeposit - bidDeposit);
+            uint256 refundAmount = totalDeposit - bidDeposit;
+            bidderDeposits[msg.sender] = bidDeposit;
+            payable(msg.sender).transfer(refundAmount);
         }
     }
 
@@ -85,27 +85,27 @@ contract VickreyAuction is IVickreyAuction {
         hasRevealed[msg.sender] = true;
         revealedBids[msg.sender] = msg.value;
 
+        uint256 refundAmount = bidderDeposits[msg.sender];
+
         if (msg.value >= reservePrice && msg.value > revealedBids[highestBidder]) {
             if (highestBidder != address(0)) {
-                // Refund previous highest bidder
                 payable(highestBidder).transfer(revealedBids[highestBidder]);
             }
             secondHighestBid = revealedBids[highestBidder];
             highestBidder = msg.sender;
-        } else if (msg.value > secondHighestBid && msg.sender != highestBidder) {
-            secondHighestBid = msg.value;
+            refundAmount = bidderDeposits[msg.sender]; // Only refund deposit for highest bidder
+        } else {
+            refundAmount += msg.value; // Refund both deposit and bid for non-highest bidders
+            if (msg.value > secondHighestBid && msg.sender != highestBidder) {
+                secondHighestBid = msg.value;
+            }
         }
 
-        // Return bid deposit
-        payable(msg.sender).transfer(bidderDeposits[msg.sender]);
-
-        // Refund excess bid amount if not the highest bidder
-        if (msg.sender != highestBidder) {
-            payable(msg.sender).transfer(msg.value);
-        }
-
-        // Reset bidder's deposit
         bidderDeposits[msg.sender] = 0;
+
+        if (refundAmount > 0) {
+            payable(msg.sender).transfer(refundAmount);
+        }
     }
 
     // This function shows how to make a commitment
